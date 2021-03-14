@@ -2,18 +2,37 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/cpufunc.h>
+#include <stdlib.h>
 #include "colors.h"
 #include "wait_until.h"
 
 // times defined in cycles - determine programmatically???
 const uint16_t LINE_PERIOD = 1271;
-const uint8_t HSYNC_PULSE = 94;
-const uint8_t FRONT_PORCH = 30;
-const uint8_t BACK_PORCH = 91;
-const uint8_t BORDER_WIDTH = 208;
-const uint8_t FRONT_PORCH_FUDGE = FRONT_PORCH + 12; // fudged front porch, to make sure we get into the interrupt in time
+const uint16_t HSYNC_PULSE = 94;
+const uint16_t FRONT_PORCH = 30;
+const uint16_t BACK_PORCH = 91;
+const uint16_t BORDER_WIDTH = 80;
+const uint16_t FRONT_PORCH_FUDGE = FRONT_PORCH + 12; // fudged front porch, to make sure we get into the interrupt in time
+const uint16_t FIELD_LINES = 261;
 
-uint16_t palette = (YELLOW << 12 | GREEN << 8 | RED << 4 | DARK_MAGENTA << 0);
+const uint16_t BORDER_START = 23;
+const uint16_t PICTURE_START = 45;
+const uint16_t PICTURE_END = 237;
+const uint16_t BORDER_END = 259;
+
+const uint8_t LINES_PER_PIXEL = 3;
+
+const uint8_t X = 32;
+const uint8_t Y = 64;
+
+uint16_t palette = (YELLOW << 12 | GREEN << 8 | RED << 4 | WHITE << 0);
+uint16_t field_line = 0;
+uint16_t pixel_line = 0;
+uint16_t frame = 0;
+
+uint8_t *screen = (uint8_t *)malloc(X * Y);
+uint8_t *screen_line = screen;
+uint8_t *screen_pixel = screen;
 
 int main()
 {
@@ -37,42 +56,90 @@ int main()
   TCA0.SINGLE.CTRLA = TCA_SINGLE_ENABLE_bm;     // enable TCA0
   TCA0.SINGLE.INTCTRL = (TCA_SINGLE_OVF_bm      // enable overflow interrupt - start of line timer
                          | TCA_SINGLE_CMP0_bm   // and CMP0 - end of line timer
-                         | TCA_SINGLE_CMP1_bm); // and CMP1 - start of video buffer
+                         | TCA_SINGLE_CMP1_bm); // and CMP1 - start of pixel drawing
 
   sei();
 
+  for (int i = 0; i < X * Y; i++)
+  {
+    screen[i] = i;
+  }
   while (true)
   {
     // main loop - if it exists - goes here
   }
 }
 
-
 ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch
 {
   VPORTA_OUT |= PIN3_bm; // BLANK high
   VPORTC_OUT = 0x00;     // blanking interval - output black
 
+  switch (field_line) // line-specific thingies
+  {
+  case 1:
+    // line 0 - set vsync high
+    PORTA.OUT |= PIN1_bm;
+    frame++;
+    break;
+  case 4:
+    // line 1 - set vsync low
+    PORTA.OUT &= ~PIN1_bm;
+    break;
+  case BORDER_START:
+    // border start - enable overflow interrupt
+    TCA0.SINGLE.INTCTRL |= TCA_SINGLE_OVF_bm;
+    break;
+  case BORDER_END:
+    // border end - disable overflow interrupt
+    TCA0.SINGLE.INTCTRL &= ~TCA_SINGLE_OVF_bm;
+    break;
+  case FIELD_LINES:
+    field_line = 0;
+    break;
+  case PICTURE_START:
+    // picture start - enable CMP1 interrupt (pixel-pushing)
+    TCA0.SINGLE.INTCTRL |= TCA_SINGLE_CMP1_bm;
+    TCA0.SINGLE.INTFLAGS = TCA_SINGLE_CMP1_bm;
+    pixel_line = 0;
+    screen_line = screen;
+    screen_pixel = screen;
+    break;
+  case PICTURE_END:
+    // picture end - disable CPM1 interrupt
+    TCA0.SINGLE.INTCTRL &= ~TCA_SINGLE_CMP1_bm;
+    break;
+  }
+
+  field_line++;
   TCA0.SINGLE.INTFLAGS = TCA_SINGLE_CMP0_bm; // clear CMP0 interrupt flag
 }
 
 ISR(TCA0_CMP1_vect) // TCA0 CPM1 routine - start of drawing period
 {
-  for (int i = 0; i < 80; i++) // loop to push pixels
+  for (int i = 0; i < 32; i++) // loop to push pixels
   {
-    VPORTC_OUT = i;
-    _NOP();
-    _NOP();
-    _NOP();
+    VPORTC_OUT = *screen_pixel;
+    screen_pixel++;
   }
+
   VPORTC_OUT = palette;                      // right border - output color 0
   TCA0.SINGLE.INTFLAGS = TCA_SINGLE_CMP1_bm; // clear CMP1 interrupt flag
+  pixel_line++;
+  if (pixel_line == LINES_PER_PIXEL)
+  {
+    pixel_line = 0;
+    screen_line += 32;
+  }
+  screen_pixel = screen_line;
 }
 
 ISR(TCA0_OVF_vect) // TCA0 overflow routine - each line
 {
   TCA0.SINGLE.INTFLAGS = TCA_SINGLE_OVF_bm; // clear OVF interrupt flag
-  wait_until(HSYNC_PULSE + BACK_PORCH);     // wait until start of active period
-  VPORTA_OUT &= ~PIN3_bm;                   // BLANK low
-  VPORTC_OUT = palette;                     // left frame border - output color 0
+
+  wait_until(HSYNC_PULSE + BACK_PORCH); // wait until start of active period
+
+  VPORTA_OUT &= ~PIN3_bm; // BLANK low
+  VPORTC_OUT = palette;   // left frame border - output color 0
 }
