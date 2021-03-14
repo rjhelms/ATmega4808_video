@@ -3,8 +3,10 @@
 #include <avr/interrupt.h>
 #include <avr/cpufunc.h>
 #include <stdlib.h>
+#include <util/delay_basic.h>
 #include "colors.h"
 #include "wait_until.h"
+#include "img/ducky.h"
 
 // times defined in cycles - determine programmatically???
 const uint16_t LINE_PERIOD = 1271;
@@ -13,7 +15,7 @@ const uint16_t FRONT_PORCH = 30;
 const uint16_t BACK_PORCH = 91;
 const uint16_t BORDER_WIDTH = 80;
 const uint16_t FRONT_PORCH_FUDGE = FRONT_PORCH + 12; // fudged front porch, to make sure we get into the interrupt in time
-const uint16_t FIELD_LINES = 261;
+const uint16_t FIELD_LINES = 262;
 
 const uint16_t BORDER_START = 23;
 const uint16_t PICTURE_START = 45;
@@ -25,7 +27,7 @@ const uint8_t LINES_PER_PIXEL = 3;
 const uint8_t X = 32;
 const uint8_t Y = 64;
 
-uint16_t palette = (YELLOW << 12 | GREEN << 8 | RED << 4 | WHITE << 0);
+uint16_t palette = (YELLOW << 12 | GREEN << 8 | RED << 4 | BLACK << 0);
 uint16_t field_line = 0;
 uint16_t pixel_line = 0;
 uint16_t frame = 0;
@@ -33,6 +35,8 @@ uint16_t frame = 0;
 uint8_t *screen = (uint8_t *)malloc(X * Y);
 uint8_t *screen_line = screen;
 uint8_t *screen_pixel = screen;
+
+uint16_t val = 0;
 
 int main()
 {
@@ -62,12 +66,14 @@ int main()
 
   for (int i = 0; i < X * Y; i++)
   {
-    screen[i] = i;
+    screen[i] = pgm_read_byte(ducky + i);
   }
+
   while (true)
   {
-    // main loop - if it exists - goes here
   }
+
+  return 0;
 }
 
 ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch
@@ -122,9 +128,9 @@ ISR(TCA0_CMP1_vect) // TCA0 CPM1 routine - start of drawing period
     VPORTC_OUT = *screen_pixel;
     screen_pixel++;
   }
-
-  VPORTC_OUT = palette;                      // right border - output color 0
+  _delay_loop_1(1);
   TCA0.SINGLE.INTFLAGS = TCA_SINGLE_CMP1_bm; // clear CMP1 interrupt flag
+  VPORTC_OUT = palette;                      // right border - output color 0
   pixel_line++;
   if (pixel_line == LINES_PER_PIXEL)
   {
