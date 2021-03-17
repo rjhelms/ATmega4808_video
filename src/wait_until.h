@@ -6,6 +6,8 @@
     https://github.com/nootropicdesign/arduino-tvout
 */
 
+// my timing counts are wrong
+
 static void inline wait_until(uint8_t time)
 {
     __asm__ __volatile__(

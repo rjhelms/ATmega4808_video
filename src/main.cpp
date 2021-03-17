@@ -6,7 +6,8 @@
 #include <util/delay_basic.h>
 #include "colors.h"
 #include "wait_until.h"
-#include "img/ducky16.h"
+
+#include "img/ducky.h"
 
 // times defined in cycles - determine programmatically???
 const uint16_t LINE_PERIOD = 1271;
@@ -27,7 +28,7 @@ const uint8_t LINES_PER_PIXEL = 5;
 const uint8_t X = 40;
 const uint8_t Y = 40;
 
-uint8_t color_bg = CYAN;
+uint8_t color_bg = BLACK;
 uint16_t field_line = 0;
 uint16_t pixel_line = 0;
 
@@ -66,7 +67,11 @@ int main()
 
   for (int i = 0; i < (X * Y / 2); i++)
   {
-    screen[i] = i;
+    screen[i] = 0xF0;
+    // uint8_t read_byte = pgm_read_byte(img_test_smpte + i);
+
+    // screen[i] = read_byte << 4;
+    // screen[i] += read_byte >> 4;
   }
 
   bool ducky = false;
@@ -110,8 +115,8 @@ ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch
     // line 0 - set vsync high
     PORTA.OUT |= PIN1_bm;
     frame++;
-    screen[0] = frame;
-    screen[1] = frame >> 8;
+    // screen[0] = frame;
+    // screen[1] = frame >> 8;
     break;
   case 4:
     // line 1 - set vsync low
@@ -149,19 +154,21 @@ ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch
 ISR(TCA0_CMP1_vect) // TCA0 CPM1 routine - start of drawing period
 {
 
-  uint8_t draw_byte;
+  asm volatile (
+    "L_%=:\n\t"
+    "ld __tmp_reg__,Z+\n\t"       // load the value at screen pointer into r24 & post-increment - 2 cyc
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at r24 to PORTC - low nibble - 1 cyc
+    "swap __tmp_reg__\n\t"        // swap the two nibbles - 1 cyc
+    "dec %[counter]\n\t"          // decrement the pixel counter - 1 cyc
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at 24 to PORTC again - 1 cyc
+    "brne L_%=\n\t"               // loop until pixel counter is 0 - 2 cyc
+    :
+    : [counter] "a"(X/2),
+      [ptr] "z"(screen_line)
+  );
 
-  for (int i = 0; i < X / 2; i++) // loop to push pixels
-  {
-
-    draw_byte = *screen_pixel++;
-    VPORTC_OUT = draw_byte;
-    VPORTC_OUT = draw_byte >> 4;
-  }
-
-  _delay_loop_1(5);
   TCA0.SINGLE.INTFLAGS = TCA_SINGLE_CMP1_bm; // clear CMP1 interrupt flag
-  VPORTC_OUT = color_bg;                     // left frame border - output color 0
+  VPORTC_OUT = color_bg;                     // right frame border
   pixel_line++;
   if (pixel_line == LINES_PER_PIXEL)
   {
@@ -178,5 +185,5 @@ ISR(TCA0_OVF_vect) // TCA0 overflow routine - each line
   wait_until(HSYNC_PULSE + BACK_PORCH); // wait until start of active period
 
   VPORTA_OUT &= ~PIN3_bm; // BLANK low
-  VPORTC_OUT = color_bg;
+  VPORTC_OUT = color_bg;  // left frame border
 }
