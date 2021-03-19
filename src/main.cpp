@@ -6,29 +6,19 @@
 #include <util/delay_basic.h>
 #include "colors.h"
 #include "wait_until.h"
+#include "video_timing.h"
 
 #include "img/ducky.h"
 
-// times defined in cycles - determine programmatically???
-const uint16_t LINE_PERIOD = 1271;
-const uint16_t HSYNC_PULSE = 94;
-const uint16_t FRONT_PORCH = 30;
-const uint16_t BACK_PORCH = 91;
-const uint16_t BORDER_WIDTH = 68;
-const uint16_t FRONT_PORCH_FUDGE = FRONT_PORCH + 24; // fudged front porch, to make sure we get into the interrupt in time
-const uint16_t FIELD_LINES = 262;
-
-const uint16_t BORDER_START = 23;
-const uint16_t PICTURE_START = 41;
-const uint16_t PICTURE_END = 241;
-const uint16_t BORDER_END = 259;
-
-const uint8_t LINES_PER_PIXEL = 5;
+#define PICTURE_START 41
+#define PICTURE_END 241
+#define BORDER_WIDTH 68
+#define LINES_PER_PIXEL 5
 
 const uint8_t X = 40;
 const uint8_t Y = 40;
 
-uint8_t color_bg = BLACK;
+uint8_t color_bg = WHITE;
 uint16_t field_line = 0;
 uint16_t pixel_line = 0;
 
@@ -36,8 +26,6 @@ volatile uint16_t frame = 0;
 volatile uint8_t *screen = (uint8_t *)malloc(X * Y);
 volatile uint8_t *screen_line = screen;
 volatile uint8_t *screen_pixel = screen;
-
-uint16_t val = 0;
 
 int main()
 {
@@ -55,7 +43,7 @@ int main()
   TCA0.SINGLE.CTRLB = (TCA_SINGLE_CMP2EN_bm                 // enable CMP2
                        | TCA_SINGLE_WGMODE_SINGLESLOPE_gc); // and single-slope mode
   TCA0.SINGLE.PER = LINE_PERIOD;                            // set period
-  TCA0.SINGLE.CMP0 = LINE_PERIOD - FRONT_PORCH_FUDGE;       // set CMP0 for start of front porch
+  TCA0.SINGLE.CMP0 = LINE_PERIOD - (FRONT_PORCH + FUDGE);   // set CMP0 for start of front porch
   TCA0.SINGLE.CMP1 = HSYNC_PULSE + BACK_PORCH + BORDER_WIDTH;
   TCA0.SINGLE.CMP2 = HSYNC_PULSE;               // set CMP2 to hsync pulse
   TCA0.SINGLE.CTRLA = TCA_SINGLE_ENABLE_bm;     // enable TCA0
