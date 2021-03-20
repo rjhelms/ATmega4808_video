@@ -20,8 +20,10 @@
 #define BACK_PORCH          (US_BACK_PORCH * CYCLES_PER_US)
 #define FUDGE               10 // fudged front porch, to make sure we get into the interrupt in time
 
-#define FIELD_LINES     262
-#define BORDER_START    16
-#define BORDER_END      259
+#define FIELD_LINES         262
+#define BORDER_START        16
+#define BORDER_END          259
+#define MIDDLE_LINE         138
+#define MAX_PICTURE_LINES   239
 
 #endif

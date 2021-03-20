@@ -11,32 +11,31 @@
 
 #include "img/ducky.h"
 
-#define PICTURE_START 45
-#define PICTURE_END 237
-#define BORDER_WIDTH 142-45
-#define LINES_PER_PIXEL 2
+Video video;
 
-const uint8_t X = 96;
-const uint8_t Y = 96;
-
-volatile uint8_t color_bg = CYAN;
-uint16_t field_line = 0;
-uint16_t pixel_line = 0;
-
-volatile uint16_t frame = 0;
-volatile uint8_t *screen = (uint8_t *)malloc(X / 2 * Y);
-volatile uint8_t *screen_line;
-volatile uint8_t *screen_pixel;
+const uint8_t x_size = 96;
+const uint8_t y_size = 96;
 
 void (*render_line)(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 
-int main()
+Video setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t background)
 {
-  // put your setup code here, to run once:
-  CCP = CCP_IOREG_gc;
-  CLKCTRL_MCLKCTRLA = 0b10000000; // output clock on A7 just for grins
-  CCP = CCP_IOREG_gc;
-  CLKCTRL_MCLKCTRLB = 0b00000000;
+  video.X = x_size;
+  video.Y = y_size;
+  video.screen = ptr;
+  video.screen_line = ptr;
+  video.color_bg = background;
+  
+  video.frame = 0;
+  video.field_line = 0;
+  video.pixel_line = 0;
+
+  video.scale = MAX_PICTURE_LINES / y_size;
+  video.picture_start = MIDDLE_LINE - ((y_size * video.scale) / 2);
+  video.picture_end = video.picture_start + (y_size * video.scale);
+  video.border_width = 142-45;
+  render_line = &render_line8c;
+
   PORTMUX.TCAROUTEA = PORTMUX_TCA0_PORTA_gc;            // output TCA0 on PORTA
   PORTA_DIR |= (PIN3_bm | PIN2_bm | PIN1_bm);           // set PORTA outputs: PA1 VSYNC, PA2 HSYNC, PA3 BLANK
   PORTC_DIR |= (PIN0_bm | PIN1_bm | PIN2_bm | PIN3_bm); // set PORTC outputs: PC0-3 RGBI
@@ -47,25 +46,38 @@ int main()
                        | TCA_SINGLE_WGMODE_SINGLESLOPE_gc); // and single-slope mode
   TCA0.SINGLE.PER = LINE_PERIOD;                            // set period
   TCA0.SINGLE.CMP0 = LINE_PERIOD - (FRONT_PORCH + FUDGE);   // set CMP0 for start of front porch
-  TCA0.SINGLE.CMP1 = HSYNC_PULSE + BACK_PORCH + BORDER_WIDTH;
+  TCA0.SINGLE.CMP1 = HSYNC_PULSE + BACK_PORCH + video.border_width;
   TCA0.SINGLE.CMP2 = HSYNC_PULSE;               // set CMP2 to hsync pulse
   TCA0.SINGLE.CTRLA = TCA_SINGLE_ENABLE_bm;     // enable TCA0
   TCA0.SINGLE.INTCTRL = (TCA_SINGLE_OVF_bm      // enable overflow interrupt - start of line timer
                          | TCA_SINGLE_CMP0_bm   // and CMP0 - end of line timer
                          | TCA_SINGLE_CMP1_bm); // and CMP1 - start of pixel drawing
-  render_line = &render_line8c;
   sei();
+}
 
-  for (int i = 0; i < (X * Y / 2); i++)
+int main()
+{
+
+  // put your setup code here, to run once:
+  CCP = CCP_IOREG_gc;
+  CLKCTRL_MCLKCTRLA = 0b10000000; // output clock on A7 just for grins
+  CCP = CCP_IOREG_gc;
+  CLKCTRL_MCLKCTRLB = 0b00000000;
+  
+  volatile uint8_t *ptr = (uint8_t *)malloc(x_size / 2 * y_size);
+  
+  
+  for (int i = 0; i < (x_size * y_size / 2); i++)
   {
     uint8_t read_byte = pgm_read_byte(img_ducky96 + i);
 
-    screen[i] = read_byte << 4;
-    screen[i] += read_byte >> 4;
+    ptr[i] = read_byte << 4;
+    ptr[i] += read_byte >> 4;
   }
-
-  bool ducky = false;
-  volatile uint16_t local_frame = 0;
+  
+  setupVideo(x_size, y_size, ptr, WHITE);
+  // bool ducky = false;
+  // volatile uint16_t local_frame = 0;
   while (true)
   {
     // if (frame - local_frame >= 0xA0)
@@ -99,14 +111,14 @@ ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch
   VPORTA_OUT |= PIN3_bm; // BLANK high
   VPORTC_OUT = 0;
 
-  switch (field_line) // line-specific thingies
+  switch (video.field_line) // line-specific thingies
   {
   case 1:
     // line 0 - set vsync high
     PORTA.OUT |= PIN1_bm;
-    frame++;
-    screen[0] = frame;
-    screen[1] = frame >> 8;
+    video.frame++;
+    // screen[0] = frame;
+    // screen[1] = frame >> 8;
     break;
   case 4:
     // line 1 - set vsync low
@@ -121,38 +133,41 @@ ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch
     TCA0.SINGLE.INTCTRL &= ~TCA_SINGLE_OVF_bm;
     break;
   case FIELD_LINES:
-    field_line = 0;
+    video.field_line = 0;
     break;
-  case PICTURE_START:
-    // picture start - enable CMP1 interrupt (pixel-pushing)
-    TCA0.SINGLE.INTCTRL |= TCA_SINGLE_CMP1_bm;
-    TCA0.SINGLE.INTFLAGS = TCA_SINGLE_CMP1_bm;
-    pixel_line = 0;
-    screen_line = screen;
-    screen_pixel = screen;
-    break;
-  case PICTURE_END:
-    // picture end - disable CPM1 interrupt
-    TCA0.SINGLE.INTCTRL &= ~TCA_SINGLE_CMP1_bm;
-    break;
+  default:
+    if (video.field_line == video.picture_start)
+    {
+      // picture start - enable CMP1 interrupt (pixel-pushing)
+      TCA0.SINGLE.INTCTRL |= TCA_SINGLE_CMP1_bm;
+      TCA0.SINGLE.INTFLAGS = TCA_SINGLE_CMP1_bm;
+      video.pixel_line = 0;
+      video.screen_line = video.screen;
+      break;
+    }
+    if (video.field_line == video.picture_end)
+    {
+      // picture end - disable CPM1 interrupt
+      TCA0.SINGLE.INTCTRL &= ~TCA_SINGLE_CMP1_bm;
+      break;
+    }
   }
 
-  field_line++;
+  video.field_line++;
   TCA0.SINGLE.INTFLAGS = TCA_SINGLE_CMP0_bm; // clear CMP0 interrupt flag
 }
 
 ISR(TCA0_CMP1_vect) // TCA0 CPM1 routine - start of drawing period
 {
-  render_line(X/2, screen_line, color_bg);
+  render_line(video.X/2, video.screen_line, video.color_bg);
 
   TCA0.SINGLE.INTFLAGS = TCA_SINGLE_CMP1_bm; // clear CMP1 interrupt flag
-  pixel_line++;
-  if (pixel_line == LINES_PER_PIXEL)
+  video.pixel_line++;
+  if (video.pixel_line == video.scale)
   {
-    pixel_line = 0;
-    screen_line += X / 2;
+    video.pixel_line = 0;
+    video.screen_line += video.X / 2;
   }
-  screen_pixel = screen_line;
 }
 
 ISR(TCA0_OVF_vect) // TCA0 overflow routine - each line
@@ -162,7 +177,7 @@ ISR(TCA0_OVF_vect) // TCA0 overflow routine - each line
   wait_until(HSYNC_PULSE + BACK_PORCH); // wait until start of active period
 
   VPORTA_OUT &= ~PIN3_bm; // BLANK low
-  VPORTC_OUT = color_bg;  // left frame border
+  VPORTC_OUT = video.color_bg;  // left frame border
 }
 
 // delay macros from arduino TV out

@@ -1,5 +1,24 @@
 #include <stdint.h>
 
+struct Video
+{
+    uint8_t X;
+    uint8_t Y;
+    volatile uint8_t *screen;
+    volatile uint8_t *screen_line;
+    volatile uint8_t color_bg;
+    volatile uint16_t frame;
+    uint16_t field_line;
+    uint16_t pixel_line;
+    
+    uint8_t scale;
+    uint16_t picture_start;
+    uint16_t picture_end;
+    uint16_t border_width;
+};
+
+Video setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t background);
+
 void render_line5c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 void render_line6c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 void render_line7c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
