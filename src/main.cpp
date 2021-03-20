@@ -9,7 +9,7 @@
 #include "video_timing.h"
 #include "main.h"
 
-#include "img/ducky.h"
+#include "img/block_dia.h"
 
 Video video;
 
@@ -33,9 +33,49 @@ Video setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t 
   video.scale = MAX_PICTURE_LINES / y_size;
   video.picture_start = MIDDLE_LINE - ((y_size * video.scale) / 2);
   video.picture_end = video.picture_start + (y_size * video.scale);
-  video.border_width = 142-45;
-  render_line = &render_line8c;
+  
+  uint8_t cycles_per_pixel = (TITLE_SAFE_PERIOD / x_size);
+  if (cycles_per_pixel < 5)
+    cycles_per_pixel = 5; // should fail here
+  if (cycles_per_pixel > 14)
+    cycles_per_pixel = 14;
 
+  switch (cycles_per_pixel)
+  {
+    case 5:
+      render_line = &render_line5c;
+      break;
+    case 6:
+      render_line = &render_line6c;
+      break;
+    case 7:
+      render_line = &render_line7c;
+      break;
+    case 8:
+      render_line = &render_line8c;
+      break;
+    case 9:
+      render_line = &render_line9c;
+      break;
+    case 10:
+      render_line = &render_line10c;
+      break;
+    case 11:
+      render_line = &render_line11c;
+      break;
+    case 12:
+      render_line = &render_line12c;
+      break;
+    case 13:
+      render_line = &render_line13c;
+      break;
+    case 14:
+      render_line = &render_line14c;
+      break;
+  }
+
+  video.border_width = MID_ACTIVE_PERIOD - ((x_size * cycles_per_pixel) / 2) - BORDER_CALL_OFFSET;
+  //render_line = &render_line6c;
   PORTMUX.TCAROUTEA = PORTMUX_TCA0_PORTA_gc;            // output TCA0 on PORTA
   PORTA_DIR |= (PIN3_bm | PIN2_bm | PIN1_bm);           // set PORTA outputs: PA1 VSYNC, PA2 HSYNC, PA3 BLANK
   PORTC_DIR |= (PIN0_bm | PIN1_bm | PIN2_bm | PIN3_bm); // set PORTC outputs: PC0-3 RGBI
@@ -45,7 +85,7 @@ Video setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t 
   TCA0.SINGLE.CTRLB = (TCA_SINGLE_CMP2EN_bm                 // enable CMP2
                        | TCA_SINGLE_WGMODE_SINGLESLOPE_gc); // and single-slope mode
   TCA0.SINGLE.PER = LINE_PERIOD;                            // set period
-  TCA0.SINGLE.CMP0 = LINE_PERIOD - (FRONT_PORCH + FUDGE);   // set CMP0 for start of front porch
+  TCA0.SINGLE.CMP0 = LINE_PERIOD - (FRONT_PORCH + FRONT_PORCH_CALL_OFFSET);   // set CMP0 for start of front porch
   TCA0.SINGLE.CMP1 = HSYNC_PULSE + BACK_PORCH + video.border_width;
   TCA0.SINGLE.CMP2 = HSYNC_PULSE;               // set CMP2 to hsync pulse
   TCA0.SINGLE.CTRLA = TCA_SINGLE_ENABLE_bm;     // enable TCA0
@@ -60,7 +100,7 @@ int main()
 
   // put your setup code here, to run once:
   CCP = CCP_IOREG_gc;
-  CLKCTRL_MCLKCTRLA = 0b10000000; // output clock on A7 just for grins
+  CLKCTRL_MCLKCTRLA = 0b10000011; // output clock on A7 just for grins
   CCP = CCP_IOREG_gc;
   CLKCTRL_MCLKCTRLB = 0b00000000;
   
@@ -69,13 +109,14 @@ int main()
   
   for (int i = 0; i < (x_size * y_size / 2); i++)
   {
-    uint8_t read_byte = pgm_read_byte(img_ducky96 + i);
+    uint8_t read_byte = pgm_read_byte(img_block_dia + i);
 
     ptr[i] = read_byte << 4;
     ptr[i] += read_byte >> 4;
+    // ptr[i] = i;
   }
   
-  setupVideo(x_size, y_size, ptr, WHITE);
+  setupVideo(x_size, y_size, ptr, DARK_GRAY);
   // bool ducky = false;
   // volatile uint16_t local_frame = 0;
   while (true)
@@ -117,8 +158,8 @@ ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch
     // line 0 - set vsync high
     PORTA.OUT |= PIN1_bm;
     video.frame++;
-    // screen[0] = frame;
-    // screen[1] = frame >> 8;
+    video.screen[0] = video.frame;
+    video.screen[1] = video.frame >> 8;
     break;
   case 4:
     // line 1 - set vsync low
