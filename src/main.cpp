@@ -29,8 +29,16 @@ Video setupResolution(uint8_t x_size, uint8_t y_size)
   uint8_t cycles_per_pixel = (TITLE_SAFE_PERIOD / x_size);
   if (cycles_per_pixel < 5)
     cycles_per_pixel = 5; // should fail here
-  if (cycles_per_pixel > 16)
-    cycles_per_pixel = 14;
+  if (cycles_per_pixel > 32)
+  {
+    cycles_per_pixel = 32;
+  }
+  else if (cycles_per_pixel > 16)
+  {
+    // above 16, round by 4 so there's fewer methods for low resolutions
+    cycles_per_pixel = cycles_per_pixel / 4;
+    cycles_per_pixel = cycles_per_pixel * 4;
+  }
 
   switch (cycles_per_pixel)
   {
@@ -69,6 +77,18 @@ Video setupResolution(uint8_t x_size, uint8_t y_size)
       break;
     case 16:
       render_line = &render_line16c;
+      break;
+    case 20:
+      render_line = &render_line20c;
+      break;
+    case 24:
+      render_line = &render_line24c;
+      break;
+    case 28:
+      render_line = &render_line28c;
+      break;
+    case 32:
+      render_line = &render_line32c;
       break;
   }
 
@@ -127,31 +147,31 @@ int main()
 
     ptr[i] = read_byte << 4;
     ptr[i] += read_byte >> 4;
-    // ptr[i] = i;
+    ptr[i] = i;
   }
   
-  setupVideo(8, 8, ptr, WHITE);
+  setupVideo(32, 32, ptr, WHITE);
   // bool ducky = false;
   // volatile uint16_t local_frame = 0;
   uint8_t wait_frames = 5;
   while (true)
   {
-    if (video.frame > wait_frames)
-    {
-      video.X += 2;
-      video.Y += 2;
-      if (video.X == 96)
-      {
-        wait_frames = 120;
-      } else if (video.X > 96)
-      {
-        wait_frames = 5;
-        video.X = 8;
-        video.Y = 8;
-      }
-      setupResolution(video.X, video.Y);
-      video.frame = 0;
-    }
+    // if (video.frame > wait_frames)
+    // {
+    //   video.X += 2;
+    //   video.Y += 2;
+    //   if (video.X == 96)
+    //   {
+    //     wait_frames = 120;
+    //   } else if (video.X > 96)
+    //   {
+    //     wait_frames = 5;
+    //     video.X = 8;
+    //     video.Y = 8;
+    //   }
+    //   setupResolution(video.X, video.Y);
+    //   video.frame = 0;
+    // }
 
   }
 
@@ -575,6 +595,103 @@ void render_line16c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg)
     "out 0x9, __tmp_reg__\n\t"    // push the byte at 24 to PORTC again - 1 cyc
     "delay10\n\t"
     "delay1\n\t"
+    "brne L_%=\n\t"               // loop until pixel counter is 0 - 2 cyc
+    "delay3\n\t"
+    "out 0x9, %[color_bg]\n\t"
+    :
+    : [counter] "a"(x),
+      [ptr] "z"(ptr),
+      [color_bg] "a"(color_bg)
+  );
+}
+
+void render_line20c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg)
+{
+  asm volatile (
+    "L_%=:\n\t"
+    "ld __tmp_reg__,Z+\n\t"       // load the value at screen pointer into r24 & post-increment - 2 cyc
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at r24 to PORTC - low nibble - 1 cyc
+    "swap __tmp_reg__\n\t"        // swap the two nibbles - 1 cyc
+    "dec %[counter]\n\t"          // decrement the pixel counter - 1 cyc
+    "delay10\n\t"
+    "delay7\n\t"
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at 24 to PORTC again - 1 cyc
+    "delay10\n\t"
+    "delay5\n\t"
+    "brne L_%=\n\t"               // loop until pixel counter is 0 - 2 cyc
+    "delay3\n\t"
+    "out 0x9, %[color_bg]\n\t"
+    :
+    : [counter] "a"(x),
+      [ptr] "z"(ptr),
+      [color_bg] "a"(color_bg)
+  );
+}
+
+void render_line24c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg)
+{
+  asm volatile (
+    "L_%=:\n\t"
+    "ld __tmp_reg__,Z+\n\t"       // load the value at screen pointer into r24 & post-increment - 2 cyc
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at r24 to PORTC - low nibble - 1 cyc
+    "swap __tmp_reg__\n\t"        // swap the two nibbles - 1 cyc
+    "dec %[counter]\n\t"          // decrement the pixel counter - 1 cyc
+    "delay10\n\t"
+    "delay10\n\t"
+    "delay1\n\t"
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at 24 to PORTC again - 1 cyc
+    "delay10\n\t"
+    "delay9\n\t"
+    "brne L_%=\n\t"               // loop until pixel counter is 0 - 2 cyc
+    "delay3\n\t"
+    "out 0x9, %[color_bg]\n\t"
+    :
+    : [counter] "a"(x),
+      [ptr] "z"(ptr),
+      [color_bg] "a"(color_bg)
+  );
+}
+
+void render_line28c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg)
+{
+  asm volatile (
+    "L_%=:\n\t"
+    "ld __tmp_reg__,Z+\n\t"       // load the value at screen pointer into r24 & post-increment - 2 cyc
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at r24 to PORTC - low nibble - 1 cyc
+    "swap __tmp_reg__\n\t"        // swap the two nibbles - 1 cyc
+    "dec %[counter]\n\t"          // decrement the pixel counter - 1 cyc
+    "delay10\n\t"
+    "delay10\n\t"
+    "delay5\n\t"
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at 24 to PORTC again - 1 cyc
+    "delay10\n\t"
+    "delay10\n\t"
+    "delay3\n\t"
+    "brne L_%=\n\t"               // loop until pixel counter is 0 - 2 cyc
+    "delay3\n\t"
+    "out 0x9, %[color_bg]\n\t"
+    :
+    : [counter] "a"(x),
+      [ptr] "z"(ptr),
+      [color_bg] "a"(color_bg)
+  );
+}
+
+void render_line32c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg)
+{
+  asm volatile (
+    "L_%=:\n\t"
+    "ld __tmp_reg__,Z+\n\t"       // load the value at screen pointer into r24 & post-increment - 2 cyc
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at r24 to PORTC - low nibble - 1 cyc
+    "swap __tmp_reg__\n\t"        // swap the two nibbles - 1 cyc
+    "dec %[counter]\n\t"          // decrement the pixel counter - 1 cyc
+    "delay10\n\t"
+    "delay10\n\t"
+    "delay9\n\t"
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at 24 to PORTC again - 1 cyc
+    "delay10\n\t"
+    "delay10\n\t"
+    "delay7\n\t"
     "brne L_%=\n\t"               // loop until pixel counter is 0 - 2 cyc
     "delay3\n\t"
     "out 0x9, %[color_bg]\n\t"

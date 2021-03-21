@@ -34,6 +34,4 @@
 #define MIDDLE_LINE         138
 #define MAX_PICTURE_LINES   216 // title safe height
 
-
-
 #endif

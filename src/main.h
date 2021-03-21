@@ -32,3 +32,7 @@ void render_line13c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 void render_line14c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 void render_line15c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 void render_line16c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
+void render_line20c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
+void render_line24c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
+void render_line28c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
+void render_line32c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
