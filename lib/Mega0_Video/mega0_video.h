@@ -20,8 +20,8 @@ struct Video
     uint16_t border_width;
 };
 
-Video setupResolution(uint8_t x_size, uint8_t y_size);
-Video setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t background);
+Video* setupResolution(uint8_t x_size, uint8_t y_size);
+Video* setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t background);
 
 void render_line5c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 void render_line6c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);

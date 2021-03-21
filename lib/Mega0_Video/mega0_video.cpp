@@ -9,7 +9,7 @@ Video video;
 
 void (*render_line)(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 
-Video setupResolution(uint8_t x_size, uint8_t y_size)
+Video* setupResolution(uint8_t x_size, uint8_t y_size)
 {
   video.X = x_size;
   video.Y = y_size;
@@ -85,10 +85,10 @@ Video setupResolution(uint8_t x_size, uint8_t y_size)
 
   video.border_width = MID_ACTIVE_PERIOD - ((x_size * cycles_per_pixel) / 2) - BORDER_CALL_OFFSET;
   TCA0.SINGLE.CMP1 = HSYNC_PULSE + BACK_PORCH + video.border_width;
-  return video;
+  return &video;
 }
 
-Video setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t background)
+Video* setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t background)
 {
   video.screen = ptr;
   video.screen_line = ptr;
@@ -117,7 +117,7 @@ Video setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t 
   setupResolution(x_size, y_size);
 
   sei();
-  return video;
+  return &video;
 }
 
 ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch
@@ -131,8 +131,6 @@ ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch
     // line 0 - set vsync high
     PORTA.OUT |= PIN1_bm;
     video.frame++;
-    video.screen[0] = video.frame;
-    video.screen[1] = video.frame >> 8;
     break;
   case 4:
     // line 1 - set vsync low
