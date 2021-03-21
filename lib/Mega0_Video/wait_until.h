@@ -6,6 +6,9 @@
     https://github.com/nootropicdesign/arduino-tvout
 */
 
+#ifndef WAIT_UNTIL_H
+#define WAIT_UNTIL_H
+
 // my timing counts are wrong
 
 static void inline wait_until(uint8_t time)
@@ -29,3 +32,5 @@ static void inline wait_until(uint8_t time)
           [tcnt1l] "a"(TCA0.SINGLE.CNTL) // put counter in a register
     );
 }
+
+#endif

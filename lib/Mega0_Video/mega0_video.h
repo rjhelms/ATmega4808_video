@@ -1,5 +1,8 @@
 #include <stdint.h>
 
+#ifndef MEGA0_VIDEO_H
+#define MEGA0_VIDEO_H
+
 struct Video
 {
     uint8_t X;
@@ -36,3 +39,5 @@ void render_line20c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 void render_line24c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 void render_line28c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 void render_line32c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
+
+#endif

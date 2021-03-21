@@ -5,6 +5,9 @@
   Colors are in nibbles in IBGR format
 */
 
+#ifndef COLORS_H
+#define COLORS_H
+
 #define BLACK           0b0000
 #define DARK_RED        0b0001
 #define DARK_GREEN      0b0010
@@ -21,3 +24,5 @@
 #define MAGENTA         0b1101
 #define CYAN            0b1110
 #define WHITE           0b1111
+
+#endif
