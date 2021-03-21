@@ -9,7 +9,7 @@
 #include "video_timing.h"
 #include "main.h"
 
-#include "img/block_dia.h"
+#include "img/test_smpte.h"
 
 Video video;
 
@@ -18,26 +18,18 @@ const uint8_t y_size = 96;
 
 void (*render_line)(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 
-Video setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t background)
+Video setupResolution(uint8_t x_size, uint8_t y_size)
 {
   video.X = x_size;
   video.Y = y_size;
-  video.screen = ptr;
-  video.screen_line = ptr;
-  video.color_bg = background;
-  
-  video.frame = 0;
-  video.field_line = 0;
-  video.pixel_line = 0;
-
   video.scale = MAX_PICTURE_LINES / y_size;
   video.picture_start = MIDDLE_LINE - ((y_size * video.scale) / 2);
   video.picture_end = video.picture_start + (y_size * video.scale);
-  
+
   uint8_t cycles_per_pixel = (TITLE_SAFE_PERIOD / x_size);
   if (cycles_per_pixel < 5)
     cycles_per_pixel = 5; // should fail here
-  if (cycles_per_pixel > 14)
+  if (cycles_per_pixel > 16)
     cycles_per_pixel = 14;
 
   switch (cycles_per_pixel)
@@ -72,10 +64,29 @@ Video setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t 
     case 14:
       render_line = &render_line14c;
       break;
+    case 15:
+      render_line = &render_line15c;
+      break;
+    case 16:
+      render_line = &render_line16c;
+      break;
   }
 
   video.border_width = MID_ACTIVE_PERIOD - ((x_size * cycles_per_pixel) / 2) - BORDER_CALL_OFFSET;
-  //render_line = &render_line6c;
+  TCA0.SINGLE.CMP1 = HSYNC_PULSE + BACK_PORCH + video.border_width;
+  return video;
+}
+
+Video setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t background)
+{
+  video.screen = ptr;
+  video.screen_line = ptr;
+  video.color_bg = background;
+  
+  video.frame = 0;
+  video.field_line = 0;
+  video.pixel_line = 0;
+  
   PORTMUX.TCAROUTEA = PORTMUX_TCA0_PORTA_gc;            // output TCA0 on PORTA
   PORTA_DIR |= (PIN3_bm | PIN2_bm | PIN1_bm);           // set PORTA outputs: PA1 VSYNC, PA2 HSYNC, PA3 BLANK
   PORTC_DIR |= (PIN0_bm | PIN1_bm | PIN2_bm | PIN3_bm); // set PORTC outputs: PC0-3 RGBI
@@ -86,13 +97,16 @@ Video setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t 
                        | TCA_SINGLE_WGMODE_SINGLESLOPE_gc); // and single-slope mode
   TCA0.SINGLE.PER = LINE_PERIOD;                            // set period
   TCA0.SINGLE.CMP0 = LINE_PERIOD - (FRONT_PORCH + FRONT_PORCH_CALL_OFFSET);   // set CMP0 for start of front porch
-  TCA0.SINGLE.CMP1 = HSYNC_PULSE + BACK_PORCH + video.border_width;
   TCA0.SINGLE.CMP2 = HSYNC_PULSE;               // set CMP2 to hsync pulse
   TCA0.SINGLE.CTRLA = TCA_SINGLE_ENABLE_bm;     // enable TCA0
   TCA0.SINGLE.INTCTRL = (TCA_SINGLE_OVF_bm      // enable overflow interrupt - start of line timer
                          | TCA_SINGLE_CMP0_bm   // and CMP0 - end of line timer
                          | TCA_SINGLE_CMP1_bm); // and CMP1 - start of pixel drawing
+
+  setupResolution(x_size, y_size);
+
   sei();
+  return video;
 }
 
 int main()
@@ -109,39 +123,36 @@ int main()
   
   for (int i = 0; i < (x_size * y_size / 2); i++)
   {
-    uint8_t read_byte = pgm_read_byte(img_block_dia + i);
+    uint8_t read_byte = pgm_read_byte(img_test_smpte + i);
 
     ptr[i] = read_byte << 4;
     ptr[i] += read_byte >> 4;
     // ptr[i] = i;
   }
   
-  setupVideo(x_size, y_size, ptr, DARK_GRAY);
+  setupVideo(8, 8, ptr, WHITE);
   // bool ducky = false;
   // volatile uint16_t local_frame = 0;
+  uint8_t wait_frames = 5;
   while (true)
   {
-    // if (frame - local_frame >= 0xA0)
-    // {
-    //   if (ducky)
-    //   {
-    //     for (int i = 0; i < X * Y; i++)
-    //     {
-    //       screen[i] = i;
-    //       // screen[i] = pgm_read_byte(ducky16 + i);
-    //     }
-    //     ducky = false;
-    //   }
-    //   else
-    //   {
-    //     for (int i = 0; i < X * Y; i++)
-    //     {
-    //       screen[i] = pgm_read_byte(ducky16 + i);
-    //     }
-    //     ducky = true;
-    //   }
-    //   local_frame += 0xA0;
-    // }
+    if (video.frame > wait_frames)
+    {
+      video.X += 2;
+      video.Y += 2;
+      if (video.X == 96)
+      {
+        wait_frames = 120;
+      } else if (video.X > 96)
+      {
+        wait_frames = 5;
+        video.X = 8;
+        video.Y = 8;
+      }
+      setupResolution(video.X, video.Y);
+      video.frame = 0;
+    }
+
   }
 
   return 0;
@@ -519,6 +530,51 @@ void render_line14c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg)
     "delay1\n\t"
     "out 0x9, __tmp_reg__\n\t"    // push the byte at 24 to PORTC again - 1 cyc
     "delay9\n\t"
+    "brne L_%=\n\t"               // loop until pixel counter is 0 - 2 cyc
+    "delay3\n\t"
+    "out 0x9, %[color_bg]\n\t"
+    :
+    : [counter] "a"(x),
+      [ptr] "z"(ptr),
+      [color_bg] "a"(color_bg)
+  );
+}
+
+void render_line15c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg)
+{
+  asm volatile (
+    "L_%=:\n\t"
+    "ld __tmp_reg__,Z+\n\t"       // load the value at screen pointer into r24 & post-increment - 2 cyc
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at r24 to PORTC - low nibble - 1 cyc
+    "swap __tmp_reg__\n\t"        // swap the two nibbles - 1 cyc
+    "dec %[counter]\n\t"          // decrement the pixel counter - 1 cyc
+    "delay10\n\t"
+    "delay2\n\t"
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at 24 to PORTC again - 1 cyc
+    "delay10\n\t"
+    "brne L_%=\n\t"               // loop until pixel counter is 0 - 2 cyc
+    "delay3\n\t"
+    "out 0x9, %[color_bg]\n\t"
+    :
+    : [counter] "a"(x),
+      [ptr] "z"(ptr),
+      [color_bg] "a"(color_bg)
+  );
+}
+
+void render_line16c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg)
+{
+  asm volatile (
+    "L_%=:\n\t"
+    "ld __tmp_reg__,Z+\n\t"       // load the value at screen pointer into r24 & post-increment - 2 cyc
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at r24 to PORTC - low nibble - 1 cyc
+    "swap __tmp_reg__\n\t"        // swap the two nibbles - 1 cyc
+    "dec %[counter]\n\t"          // decrement the pixel counter - 1 cyc
+    "delay10\n\t"
+    "delay3\n\t"
+    "out 0x9, __tmp_reg__\n\t"    // push the byte at 24 to PORTC again - 1 cyc
+    "delay10\n\t"
+    "delay1\n\t"
     "brne L_%=\n\t"               // loop until pixel counter is 0 - 2 cyc
     "delay3\n\t"
     "out 0x9, %[color_bg]\n\t"
