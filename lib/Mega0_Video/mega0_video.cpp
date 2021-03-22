@@ -1,5 +1,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/pgmspace.h>
 
 #include "wait_until.h"
 #include "video_timing.h"
@@ -118,6 +119,64 @@ Video* setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t
 
   sei();
   return &video;
+}
+
+void drawPixel(uint16_t x, uint16_t y, uint8_t color)
+{
+  volatile uint8_t *pixel_ptr = video.screen;
+  pixel_ptr += x >> 1;
+  pixel_ptr += y * (video.X / 2);
+  uint8_t byte = pixel_ptr[0];
+  if (x & 1)
+  {
+    byte = byte & 0x0F;
+    byte += color << 4;
+  } else 
+  {
+    byte = byte & 0xF0;
+    byte += color;
+  }
+  pixel_ptr[0] = byte;
+}
+
+void drawChar(uint16_t x, uint16_t y, unsigned char c, uint8_t fg, uint8_t bg, const unsigned char *f)
+{
+  // clamp range
+  while (c > pgm_read_byte(f+3))
+    c -= 0x20;
+  while (c < pgm_read_byte(f+2))
+    c += 0x20;
+  c -= pgm_read_byte(f+2);
+  uint16_t offset = (c * pgm_read_byte(f+1)) + 4;
+  for (int j=0; j<pgm_read_byte(f+1); j++)
+  {
+    uint8_t byte = pgm_read_byte(f+offset);
+    for (int i=pgm_read_byte(f)-1; i>=0; i--)
+    {
+      if (byte & 1<<i)
+      {
+        drawPixel(x,y,fg);
+      } else {
+        drawPixel(x,y,bg);
+      }
+      x++;
+    }
+    offset++;
+    y++;
+    x -= pgm_read_byte(f);
+  }
+}
+
+void drawChar(uint16_t x, uint16_t y, unsigned char c, const unsigned char *f)
+{
+  drawChar(x, y, c, 0xF, 0x0, f);
+}
+
+void delayFrames(uint16_t frames)
+{
+  uint16_t start_frame = video.frame;
+  while (video.frame - start_frame < frames)
+  {;}
 }
 
 ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch

@@ -23,6 +23,13 @@ struct Video
 Video* setupResolution(uint8_t x_size, uint8_t y_size);
 Video* setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t background);
 
+void drawPixel(uint16_t x, uint16_t y, uint8_t color);
+
+void drawChar(uint16_t x, uint16_t y, unsigned char c, uint8_t fg, uint8_t bg, const unsigned char *f);
+void drawChar(uint16_t x, uint16_t y, unsigned char c, const unsigned char *f);
+
+void delayFrames(uint16_t frames);
+
 void render_line5c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 void render_line6c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
 void render_line7c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
