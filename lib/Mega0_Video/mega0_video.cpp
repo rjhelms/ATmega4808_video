@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
@@ -121,12 +123,20 @@ Video* setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t
   return &video;
 }
 
-void drawPixel(uint16_t x, uint16_t y, uint8_t color)
+void setByte(uint8_t x, uint8_t y, uint8_t value)
+{
+  volatile uint8_t *byte_ptr = video.screen;
+  byte_ptr += x;
+  byte_ptr += y * (video.X / 2);
+  *byte_ptr = value;
+}
+
+void drawPixel(uint8_t x, uint8_t y, uint8_t color)
 {
   volatile uint8_t *pixel_ptr = video.screen;
   pixel_ptr += x >> 1;
   pixel_ptr += y * (video.X / 2);
-  uint8_t byte = pixel_ptr[0];
+  uint8_t byte = *pixel_ptr;
   if (x & 1)
   {
     byte = byte & 0x0F;
@@ -136,10 +146,10 @@ void drawPixel(uint16_t x, uint16_t y, uint8_t color)
     byte = byte & 0xF0;
     byte += color;
   }
-  pixel_ptr[0] = byte;
+  *pixel_ptr = byte;
 }
 
-void drawChar(uint16_t x, uint16_t y, unsigned char c, uint8_t fg, uint8_t bg, const unsigned char *f)
+void drawChar(uint8_t x, uint8_t y, unsigned char c, uint8_t fg, uint8_t bg, const unsigned char *f)
 {
   // clamp range
   while (c > pgm_read_byte(f+3))
@@ -167,7 +177,7 @@ void drawChar(uint16_t x, uint16_t y, unsigned char c, uint8_t fg, uint8_t bg, c
   }
 }
 
-void drawChar(uint16_t x, uint16_t y, unsigned char c, const unsigned char *f)
+void drawChar(uint8_t x, uint8_t y, unsigned char c, const unsigned char *f)
 {
   drawChar(x, y, c, 0xF, 0x0, f);
 }
