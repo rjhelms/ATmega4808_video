@@ -131,6 +131,20 @@ void setByte(uint8_t x, uint8_t y, uint8_t value)
   *byte_ptr = value;
 }
 
+void fillRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t color)
+{
+  volatile uint8_t byte = (color << 4) + color;
+  x = x / 2;
+  w = w / 2;
+  for (int j=0; j<h; j++)
+  {
+    for (int i=0; i<w; i++)
+    {
+      video.screen[x+i + (y+j)*(video.X/2)] = byte;
+    }
+  }
+}
+
 void drawPixel(uint8_t x, uint8_t y, uint8_t color)
 {
   volatile uint8_t *pixel_ptr = video.screen;
@@ -147,6 +161,50 @@ void drawPixel(uint8_t x, uint8_t y, uint8_t color)
     byte += color;
   }
   *pixel_ptr = byte;
+}
+
+void drawLine(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t color)
+{
+  int8_t delta_x = x2 - x1;
+  int8_t delta_y = y2 - y1;
+  float step_x;
+  float step_y;
+  uint8_t steps = 0;
+
+  if (abs(delta_x) > abs(delta_y))
+  {
+    if (delta_x < 0)
+    {
+      step_x = -1;
+      step_y = (float)delta_y / -delta_x;
+    }
+    else {
+      step_x = 1;
+      step_y = (float)delta_y / delta_x;
+    }
+    steps = abs(delta_x);
+  } else {
+    if (delta_y < 0)
+    {
+      step_y = -1;
+      step_x = (float)delta_x / -delta_y;
+    }
+    else {
+      step_y = 1;
+      step_x = (float)delta_x / delta_y;
+    }
+    steps = abs(delta_y);
+  }
+
+  float x = x1;
+  float y = y1;
+  while (steps > 0)
+  {
+    drawPixel(x, y, color);
+    x += step_x;
+    y += step_y;
+    steps--;
+  }
 }
 
 void drawChar(uint8_t x, uint8_t y, unsigned char c, uint8_t fg, uint8_t bg, const unsigned char *f)
@@ -254,12 +312,21 @@ uint8_t drawFloat(uint8_t x, uint8_t y, float val, uint8_t precision, uint8_t fg
   return drawFloat(x, y, val, 10, precision, fg, bg, f);
 }
 
+uint8_t drawStr(uint8_t x, uint8_t y, const char *str, uint8_t fg, uint8_t bg, const unsigned char *f)
+{
+  uint8_t loc = 0;
+  while (*str)
+    drawChar(x + loc++*f[0], y, *str++, fg, bg, f);
+  return loc;
+}
+
 void delayFrames(uint16_t frames)
 {
   uint16_t start_frame = video.frame;
   while (video.frame - start_frame < frames)
   {;}
 }
+
 
 ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch
 {

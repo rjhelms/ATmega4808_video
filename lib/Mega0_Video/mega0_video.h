@@ -25,6 +25,8 @@ Video* setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t
 
 void setByte(uint8_t x, uint8_t y, uint8_t value);
 void drawPixel(uint8_t x, uint8_t y, uint8_t color);
+void fillRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t color);
+void drawLine(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, uint8_t color);
 
 void drawChar(uint8_t x, uint8_t y, unsigned char c, uint8_t fg, uint8_t bg, const unsigned char *f);
 void drawChar(uint8_t x, uint8_t y, unsigned char c, const unsigned char *f);
@@ -35,6 +37,7 @@ uint8_t drawSignedInt(uint8_t x, uint8_t y, int32_t val, uint8_t base, uint8_t f
 uint8_t drawSignedInt(uint8_t x, uint8_t y, int32_t val, uint8_t fg, uint8_t bg, const unsigned char *f);
 uint8_t drawFloat(uint8_t x, uint8_t y, float val, uint8_t base, uint8_t precision, uint8_t fg, uint8_t bg, const unsigned char *f);
 uint8_t drawFloat(uint8_t x, uint8_t y, float val, uint8_t precision, uint8_t fg, uint8_t bg, const unsigned char *f);
+uint8_t drawStr(uint8_t x, uint8_t y, const char *str, uint8_t fg, uint8_t bg, const unsigned char *f);
 
 void delayFrames(uint16_t frames);
 
