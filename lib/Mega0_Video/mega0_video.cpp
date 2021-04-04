@@ -182,6 +182,40 @@ void drawChar(uint8_t x, uint8_t y, unsigned char c, const unsigned char *f)
   drawChar(x, y, c, 0xF, 0x0, f);
 }
 
+uint8_t drawUnsignedInt(uint8_t x, uint8_t y, uint32_t val, uint8_t base, uint8_t fg, uint8_t bg, const unsigned char *f)
+{
+  unsigned char buf[8 * sizeof(uint32_t)];
+  unsigned char temp;
+  unsigned long i = 0;
+  if (val == 0)
+  {
+    drawChar(x, y, '0', fg, bg, f);
+  }
+  while (val > 0)
+  {
+    buf[i] = val % base;
+    if (buf[i] >= 10)
+    {
+      buf[i] += 7; // skip from 9 (ASCII 0x39) to A (ASCII 0x41)
+    }
+    val /= base;
+    i++;
+  }
+  
+  uint8_t loc = 0;
+  for (; i > 0; i--)
+  {
+    drawChar(loc*5 + x, y, '0' + buf[i-1], fg, bg, f);
+    loc++;
+  }
+  return loc;
+}
+
+uint8_t drawUnsignedInt(uint8_t x, uint8_t y, uint32_t val, uint8_t fg, uint8_t bg, const unsigned char *f)
+{
+  return drawUnsignedInt(x, y, val, 10, fg, bg, f);
+}
+
 void delayFrames(uint16_t frames)
 {
   uint16_t start_frame = video.frame;

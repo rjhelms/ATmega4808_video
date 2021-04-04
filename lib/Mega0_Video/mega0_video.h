@@ -29,6 +29,9 @@ void drawPixel(uint8_t x, uint8_t y, uint8_t color);
 void drawChar(uint8_t x, uint8_t y, unsigned char c, uint8_t fg, uint8_t bg, const unsigned char *f);
 void drawChar(uint8_t x, uint8_t y, unsigned char c, const unsigned char *f);
 
+uint8_t drawUnsignedInt(uint8_t x, uint8_t y, uint32_t val, uint8_t base, uint8_t fg, uint8_t bg, const unsigned char *f);
+uint8_t drawUnsignedInt(uint8_t x, uint8_t y, uint32_t val, uint8_t fg, uint8_t bg, const unsigned char *f);
+
 void delayFrames(uint16_t frames);
 
 void render_line5c(uint8_t x, volatile uint8_t *ptr, uint8_t color_bg);
