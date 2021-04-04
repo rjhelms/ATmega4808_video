@@ -205,7 +205,7 @@ uint8_t drawUnsignedInt(uint8_t x, uint8_t y, uint32_t val, uint8_t base, uint8_
   uint8_t loc = 0;
   for (; i > 0; i--)
   {
-    drawChar(loc*5 + x, y, '0' + buf[i-1], fg, bg, f);
+    drawChar(loc*f[0] + x, y, '0' + buf[i-1], fg, bg, f);
     loc++;
   }
   return loc;
@@ -214,6 +214,44 @@ uint8_t drawUnsignedInt(uint8_t x, uint8_t y, uint32_t val, uint8_t base, uint8_
 uint8_t drawUnsignedInt(uint8_t x, uint8_t y, uint32_t val, uint8_t fg, uint8_t bg, const unsigned char *f)
 {
   return drawUnsignedInt(x, y, val, 10, fg, bg, f);
+}
+
+uint8_t drawSignedInt(uint8_t x, uint8_t y, int32_t val, uint8_t base, uint8_t fg, uint8_t bg, const unsigned char *f)
+{
+  uint8_t loc = 0;
+  if (val < 0)
+  {
+    drawChar(x, y, '-', fg, bg, f);
+    val = -val;
+    loc++;
+  }
+  loc += drawUnsignedInt(x+loc*f[0], y, val, base, fg, bg, f);
+  return loc;
+}
+
+uint8_t drawSignedInt(uint8_t x, uint8_t y, int32_t val, uint8_t fg, uint8_t bg, const unsigned char *f)
+{
+  return drawSignedInt(x, y, val, 10, fg, bg, f);
+}
+
+uint8_t drawFloat(uint8_t x, uint8_t y, float val, uint8_t base, uint8_t precision, uint8_t fg, uint8_t bg, const unsigned char *f)
+{
+  uint8_t loc = drawSignedInt(x, y, (int32_t)val, base, fg, bg, f);
+  if (val < 0)
+    val = -val;
+  drawChar(x + loc++*f[0], y, '.', fg, bg, f);
+  for (int i = 0; i < precision; i++)
+  {
+    val -= (int)val;
+    val *= base;
+    drawUnsignedInt(x + loc++*f[0], y, (uint32_t) val, base, fg, bg, f);
+  }
+  return loc;
+}
+
+uint8_t drawFloat(uint8_t x, uint8_t y, float val, uint8_t precision, uint8_t fg, uint8_t bg, const unsigned char *f)
+{
+  return drawFloat(x, y, val, 10, precision, fg, bg, f);
 }
 
 void delayFrames(uint16_t frames)

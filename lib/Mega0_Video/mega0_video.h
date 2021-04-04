@@ -31,6 +31,10 @@ void drawChar(uint8_t x, uint8_t y, unsigned char c, const unsigned char *f);
 
 uint8_t drawUnsignedInt(uint8_t x, uint8_t y, uint32_t val, uint8_t base, uint8_t fg, uint8_t bg, const unsigned char *f);
 uint8_t drawUnsignedInt(uint8_t x, uint8_t y, uint32_t val, uint8_t fg, uint8_t bg, const unsigned char *f);
+uint8_t drawSignedInt(uint8_t x, uint8_t y, int32_t val, uint8_t base, uint8_t fg, uint8_t bg, const unsigned char *f);
+uint8_t drawSignedInt(uint8_t x, uint8_t y, int32_t val, uint8_t fg, uint8_t bg, const unsigned char *f);
+uint8_t drawFloat(uint8_t x, uint8_t y, float val, uint8_t base, uint8_t precision, uint8_t fg, uint8_t bg, const unsigned char *f);
+uint8_t drawFloat(uint8_t x, uint8_t y, float val, uint8_t precision, uint8_t fg, uint8_t bg, const unsigned char *f);
 
 void delayFrames(uint16_t frames);
 
