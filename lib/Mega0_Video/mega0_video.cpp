@@ -101,6 +101,9 @@ Video* setupVideo(uint8_t x_size, uint8_t y_size, volatile uint8_t *ptr, uint8_t
   video.field_line = 0;
   video.pixel_line = 0;
   
+  video.hbi = false;
+  video.vbi = false;
+  
   PORTMUX.TCAROUTEA = PORTMUX_TCA0_PORTA_gc;            // output TCA0 on PORTA
   PORTA_DIR |= (PIN3_bm | PIN2_bm | PIN1_bm);           // set PORTA outputs: PA1 VSYNC, PA2 HSYNC, PA3 BLANK
   PORTC_DIR |= (PIN0_bm | PIN1_bm | PIN2_bm | PIN3_bm); // set PORTC outputs: PC0-3 RGBI
@@ -330,6 +333,8 @@ void delayFrames(uint16_t frames)
 
 ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch
 {
+
+  video.hbi = true;
   VPORTA_OUT |= PIN3_bm; // BLANK high
   VPORTC_OUT = 0;
 
@@ -351,6 +356,7 @@ ISR(TCA0_CMP0_vect) // TCA0 CPM0 routine - front porch
   case BORDER_END:
     // border end - disable overflow interrupt
     TCA0.SINGLE.INTCTRL &= ~TCA_SINGLE_OVF_bm;
+    video.vbi = true;
     break;
   case FIELD_LINES:
     video.field_line = 0;

@@ -12,7 +12,7 @@
 #define US_BACK_PORCH       4.5
 #define US_FRONT_PORCH      1.7
 #define US_ACTIVE_PERIOD    (US_LINE_PERIOD-(US_HSYNC+US_BACK_PORCH+US_FRONT_PORCH))
-#define US_TITLE_SAFE_PERIOD (US_ACTIVE_PERIOD * 0.9)
+#define US_TITLE_SAFE_PERIOD (US_ACTIVE_PERIOD * 0.85)
 #define US_MID_ACTIVE_PERIOD (US_ACTIVE_PERIOD / 2)
 
 #define FRONT_PORCH_CALL_OFFSET 10 // fudged front porch, to make sure we get into the interrupt in time

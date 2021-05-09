@@ -11,13 +11,16 @@ struct Video
     volatile uint8_t *screen_line;
     volatile uint8_t color_bg;
     volatile uint16_t frame;
-    uint16_t field_line;
+    volatile uint16_t field_line;
     uint16_t pixel_line;
     
     uint8_t scale;
     uint16_t picture_start;
     uint16_t picture_end;
     uint16_t border_width;
+
+    volatile bool hbi = false;
+    volatile bool vbi = false;
 };
 
 Video* setupResolution(uint8_t x_size, uint8_t y_size);
