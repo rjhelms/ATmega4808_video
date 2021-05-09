@@ -398,10 +398,9 @@ ISR(TCA0_CMP1_vect) // TCA0 CPM1 routine - start of drawing period
 
 ISR(TCA0_OVF_vect) // TCA0 overflow routine - each line
 {
-  TCA0.SINGLE.INTFLAGS = TCA_SINGLE_OVF_bm; // clear OVF interrupt flag
-
   wait_until(HSYNC_PULSE + BACK_PORCH); // wait until start of active period
-
+  TCA0.SINGLE.INTFLAGS = TCA_SINGLE_OVF_bm; // clear OVF interrupt flag
+  
   VPORTA_OUT &= ~PIN3_bm; // BLANK low
   VPORTC_OUT = video.color_bg;  // left frame border
 }
